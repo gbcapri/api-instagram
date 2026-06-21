@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema Distribuído - UTFPR</title>
+  <style>
+    :root {
+      --bg-dark: #09090b; --card-bg: #111111; --card-hover: #1a1a1a;
+      --accent: #19b717; --text-main: #f8fafc; --border: #27272a; --error: #ef4444;
+    }
+
+    body {
+      background-color: var(--bg-dark); color: var(--text-main);
+      font-family: 'Segoe UI', sans-serif; margin: 0; padding: 2rem;
+      display: grid; grid-template-columns: 400px 1fr; gap: 1.5rem; height: 100vh; box-sizing: border-box;
+    }
+
+    .painel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+    .painel-content { padding: 1.5rem; overflow-y: auto; flex: 1; }
+
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: #000; }
+    .tab { flex: 1; padding: 1rem; text-align: center; cursor: pointer; font-weight: bold; color: #a1a1aa; border-bottom: 2px solid transparent; transition: 0.2s; }
+    .tab:hover { color: var(--text-main); background: var(--card-hover); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .view { display: none; animation: fadeIn 0.3s; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    h3 { color: var(--accent); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    p.instrucao { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 1rem; }
+    
+    label { display: block; font-size: 0.75rem; color: #a1a1aa; margin: 0.5rem 0 0.2rem 0; }
+    input { width: 100%; padding: 0.6rem; background: #000; border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 0.5rem; }
+    input:focus { outline: none; border-color: var(--accent); }
+
+    .btn-grid { display: grid; gap: 0.8rem; margin-top: 1rem; }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    
+    button { background: var(--accent); color: #000; border: none; padding: 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+    button:hover { filter: brightness(1.2); }
+    button.secundario { background: #333; color: #fff; }
+    button.perigo { background: var(--error); color: #fff; }
+
+    .terminal-container { background: #000; padding: 1rem; height: 100%; overflow-y: auto; box-sizing: border-box; font-family: 'Consolas', monospace; font-size: 0.85rem; display: flex; flex-direction: column; }
+    .terminal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #222; margin-bottom: 1rem; }
+    .terminal-view { display: none; flex: 1; overflow-y: auto; }
+    .terminal-view.active { display: block; }
+    
+    .log-entry { margin-bottom: 1.5rem; border-left: 3px solid var(--accent); padding-left: 10px; padding-bottom: 0.5rem; border-bottom: 1px solid #222; }
+    .log-error { border-left-color: var(--error); }
+    .log-title { font-weight: bold; margin-bottom: 5px; display: block; }
+    .log-user { color: #a1a1aa; }
+    .log-server { color: var(--accent); }
+    .log-error .log-server { color: var(--error); }
+    pre { margin: 4px 0 10px 0; background: #111; padding: 8px; border-radius: 4px; color: #ccc; white-space: pre-wrap; word-wrap: break-word; }
+
+    .info-box { background: #000; border: 1px solid var(--border); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+    .info-box span { color: var(--accent); font-weight: bold; }
+    .lista-usuarios { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-top: 1.5rem; min-height: 100px; }
+    .usuario-item { color: var(--text-main); font-size: 0.85rem; padding: 0.5rem 0; border-bottom: 1px dashed #222; }
+    .usuario-item:last-child { border-bottom: none; }
+    .alerta-teste { background: #1a1a1a; border-left: 3px solid var(--accent); padding: 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="painel">
+    <div class="tabs">
+      <div class="tab active" id="tabCliente" onclick="mudarAba('cliente')">Cliente</div>
+      <div class="tab" id="tabServidor" onclick="mudarAba('servidor')">Meu Servidor</div>
+    </div>
+
+    <div class="painel-content">
+      
+      <div id="aba-servidor" class="view">
+        <h3>Controle do Servidor Local</h3>
+        <div class="info-box">
+          <label>IP de Escuta da Rede:</label>
+          <div id="meuIpExibicao" style="font-size: 1.2rem; color: var(--accent); margin-bottom: 1rem;">Detectando...</div>
+          
+          <label>Status do Processo Node.js:</label>
+          <div style="color: #a1a1aa; margin-bottom: 1rem;">Rodando na porta <span style="color: #fff;">22222</span></div>
+        </div>
+
+        <h3>Usuários Logados (Monitoramento)</h3>
+        <div id="listaUsuariosLogados" class="lista-usuarios">
+          <div style="color: #555; text-align: center; font-style: italic;">Nenhum usuário conectado</div>
+        </div>
+      </div>
+
+      <div id="aba-cliente" class="view active">
+        
+        <div id="view-conectar" class="view active">
+          <h3>Conectar a um Servidor</h3>
+          <p class="instrucao">Insira o IP e Porta do colega para iniciar a comunicação.</p>
+          <label>IP do Servidor:</label>
+          <input type="text" id="inpIp" value="localhost">
+          <label>Porta:</label>
+          <input type="number" id="inpPorta" value="22222">
+          <div class="btn-grid">
+            <button onclick="conectar()">Conectar</button>
+          </div>
+        </div>
+
+        <div id="view-visitante" class="view">
+          <h3>Conectado ao Servidor</h3>
+          <div class="info-box" style="font-size: 0.8rem; text-align: center;" id="displayConexao"></div>
+          <div class="btn-grid">
+            <button onclick="irPara('view-cadastro')">Cadastrar</button>
+            <button onclick="irPara('view-login')">Fazer Login</button>
+            <button onclick="desconectar()" class="secundario" style="background: #27272a;">Desconectar do Servidor</button>
+          </div>
+        </div>
+
+        <div id="view-cadastro" class="view">
+          <h3>Novo Cadastro</h3>
+          <label>Usuário (@):</label> <input type="text" id="cadUser">
+          <label>Senha:</label> <input type="password" id="cadPass">
+          <label>E-mail:</label> <input type="email" id="cadEmail">
+          <label>Nome Completo:</label> <input type="text" id="cadNome">
+          <label>Biografia:</label> <input type="text" id="cadBio">
+          <div class="btn-row">
+            <button onclick="irPara('view-visitante')" class="secundario">Voltar</button>
+            <button onclick="enviarCadastro()">Cadastrar</button>
+          </div>
+        </div>
+
+        <div id="view-login" class="view">
+          <h3>Acesso ao Sistema</h3>
+          <label>Usuário (@):</label> <input type="text" id="logUser">
+          <label>Senha:</label> <input type="password" id="logPass">
+          <div class="btn-row">
+            <button onclick="irPara('view-visitante')" class="secundario">Voltar</button>
+            <button onclick="fazerLogin()">Efetuar Login</button>
+          </div>
+        </div>
+
+        <div id="view-logado" class="view">
+          <h3>Meu Painel <span id="seloAdmin" style="display: none; background: var(--accent); color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 10px;">ADMINISTRADOR</span></h3>
+          <p class="instrucao" style="color: var(--accent);">Login efetuado com sucesso.</p>
+
+          <div class="btn-grid">
+            <button onclick="listarTodos()" class="apenas-admin">Listar todos os usuários</button>
+            <button onclick="pedirDados()">Pedir dados da minha conta</button>
+            <button onclick="irPara('view-atualizar')">Atualizar dados</button>
+            <button onclick="irPara('view-apagar')" class="perigo">Apagar conta</button>
+            <button onclick="fazerLogout()" class="secundario">Logout</button>
+          </div>
+        </div>
+
+        <div id="view-dados" class="view">
+          <h3>Dados da Conta</h3>
+          <div id="dadosContaBox" class="info-box" style="font-size: 0.95rem; line-height: 1.6;"></div>
+          <button onclick="irPara('view-logado')" class="secundario">Voltar</button>
+        </div>
+
+        <div id="view-atualizar" class="view">
+          <h3>Atualizar Cadastro</h3>
+          <p class="instrucao">Preencha apenas o que deseja mudar.</p>
+          
+          <div class="alerta-teste apenas-admin">
+            <label style="color: #fff;">(Modo Admin) ID Alvo:</label>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para atualizar o seu. Preencha para alterar conta de terceiros.</p>
+            <input type="number" id="updIdAlvo" placeholder="Ex: 2">
+          </div>
+
+          <label>Novo Nome:</label> <input type="text" id="updNome">
+          <label>Novo Usuário (@):</label> <input type="text" id="updUser">
+          <label>Nova Biografia:</label> <input type="text" id="updBio">
+          <label>Nova Senha:</label> <input type="password" id="updPass">
+          <div class="btn-row">
+            <button onclick="irPara('view-logado')" class="secundario">Voltar</button>
+            <button onclick="enviarAtualizacao()">Confirmar mudanças</button>
+          </div>
+        </div>
+
+        <div id="view-apagar" class="view">
+          <h3 style="color: var(--error); border-color: var(--error);">Atenção</h3>
+          
+          <div class="alerta-teste apenas-admin" style="border-color: var(--error);">
+            <label style="color: #fff;">(Modo Admin) ID Alvo:</label>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para apagar a própria conta. Preencha para tentar apagar terceiros.</p>
+            <input type="number" id="delIdAlvo" placeholder="Ex: 2">
+          </div>
+
+          <div class="btn-row" style="margin-top: 2rem;">
+            <button onclick="irPara('view-logado')" class="secundario">Voltar</button>
+            <button onclick="enviarDelecao()" class="perigo">Executar Deleção</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="painel terminal-container" style="padding: 0; border: none;">
+    <div class="terminal-header">
+      <div style="color: #a1a1aa; padding-left: 1rem;" id="terminal-titulo">-- Logs do Sistema --</div>
+      <button onclick="limparLogs()" class="secundario" style="width: auto; padding: 0.4rem 1rem; margin-right: 1rem; font-size: 0.8rem;">Limpar Logs</button>
+    </div>
+
+    <div id="terminal-cliente" class="terminal-view active"></div>
+    <div id="terminal-servidor" class="terminal-view"></div>
+  </div>
+
+  <script>
+    let token = '';
+    let baseUrl = '';
+    let meuIdLogado = null;
+    let ehAdmin = false;
+
+    // --- NOVA FUNÇÃO PARA ATUALIZAR A INTERFACE ---
+    function atualizarInterfaceAdmin() {
+      const elementosAdmin = document.querySelectorAll('.apenas-admin');
+      elementosAdmin.forEach(el => {
+        el.style.display = ehAdmin ? 'block' : 'none';
+      });
+
+      const seloAdmin = document.getElementById('seloAdmin');
+      if (seloAdmin) {
+        seloAdmin.style.display = ehAdmin ? 'inline-block' : 'none';
+      }
+    }
+    // ----------------------------------------------
+
+    function mudarAba(aba) {
+      document.getElementById('tabCliente').classList.remove('active');
+      document.getElementById('tabServidor').classList.remove('active');
+      document.getElementById('aba-cliente').classList.remove('active');
+      document.getElementById('aba-servidor').classList.remove('active');
+      document.getElementById('terminal-cliente').classList.remove('active');
+      document.getElementById('terminal-servidor').classList.remove('active');
+      
+      document.getElementById('tab' + aba.charAt(0).toUpperCase() + aba.slice(1)).classList.add('active');
+      document.getElementById('aba-' + aba).classList.add('active');
+      document.getElementById('terminal-' + aba).classList.add('active');
+    }
+
+    function irPara(telaId) {
+      const views = document.querySelectorAll('#aba-cliente .view');
+      views.forEach(v => v.classList.remove('active'));
+      document.getElementById(telaId).classList.add('active');
+    }
+
+    function limparLogs() {
+      document.getElementById('terminal-cliente').innerHTML = '';
+      document.getElementById('terminal-servidor').innerHTML = '';
+    }
+
+    function registrarLog(metodo, rota, corpoReq, status, corpoRes) {
+      const isError = status >= 400 && status !== '---';
+      const reqFormatada = corpoReq ? `<pre>${JSON.stringify(corpoReq, null, 2)}</pre>` : '<pre>Sem payload de envio.</pre>';
+      const resFormatada = corpoRes ? `<pre>${JSON.stringify(corpoRes, null, 2)}</pre>` : '<pre>Sem corpo de resposta.</pre>';
+
+      const htmlCliente = `
+        <div class="log-entry ${isError ? 'log-error' : ''}">
+          <span class="log-title">[${new Date().toLocaleTimeString()}] ${metodo} ${rota}</span>
+          <span class="log-user">Você (Usuário) mandou:</span> ${reqFormatada}
+          <span class="log-server">Servidor respondeu: [Status: ${status}]</span> ${resFormatada}
+        </div>
+      `;
+      
+      const htmlServidor = `
+        <div class="log-entry ${isError ? 'log-error' : ''}">
+          <span class="log-title">[${new Date().toLocaleTimeString()}] ${metodo} ${rota}</span>
+          <span class="log-user">Usuário mandou:</span> ${reqFormatada}
+          <span class="log-server">Você (Servidor) respondeu: [Status: ${status}]</span> ${resFormatada}
+        </div>
+      `;
+
+      document.getElementById('terminal-cliente').insertAdjacentHTML('afterbegin', htmlCliente);
+      document.getElementById('terminal-servidor').insertAdjacentHTML('afterbegin', htmlServidor);
+    }
+
+    function atualizarPainelServidor(acao, id, nome) {
+      const lista = document.getElementById('listaUsuariosLogados');
+      if (acao === 'conectar') {
+        lista.innerHTML = `<div class="usuario-item">Visitante - conectado</div>`;
+      } else if (acao === 'logar') {
+        lista.innerHTML = `<div class="usuario-item">${id} - logado (${nome})</div>`;
+      } else if (acao === 'desconectar') {
+        lista.innerHTML = `<div style="color: #555; text-align: center; font-style: italic;">Nenhum usuário conectado</div>`;
+      }
+    }
+
+    async function conectar() {
+      const ip = document.getElementById('inpIp').value;
+      const porta = document.getElementById('inpPorta').value;
+      const urlTentativa = `http://${ip}:${porta}`;
+
+      registrarLog('SISTEMA', 'Tentando Conexão...', { alvo: urlTentativa }, '---', { status: 'Aguardando resposta...' });
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const res = await fetch(urlTentativa + '/usuarios', { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        baseUrl = urlTentativa;
+        document.getElementById('displayConexao').innerText = `Conectado: ${baseUrl}`;
+        document.getElementById('displayConexao').style.color = "var(--accent)";
+        
+        atualizarPainelServidor('conectar');
+        registrarLog('SISTEMA', 'Sucesso', null, 200, { mensagem: "Servidor detectado e respondendo." });
+        irPara('view-visitante');
+
+      } catch (erro) {
+        document.getElementById('displayConexao').innerText = "Falha ao conectar. Verifique o IP/Porta.";
+        document.getElementById('displayConexao').style.color = "var(--error)";
+        registrarLog('ERRO DE REDE', 'Falha de Conexão', { url: urlTentativa }, 0, { detalhe: 'Servidor recusou a conexão ou houve timeout.' });
+      }
+    }
+
+    function desconectar() {
+      baseUrl = '';
+      token = '';
+      meuIdLogado = null;
+      ehAdmin = false;
+      atualizarInterfaceAdmin(); // Desliga a interface admin
+      atualizarPainelServidor('desconectar');
+      registrarLog('SISTEMA', 'Desconexão', null, 200, { mensagem: "Desconectado e chaves limpas." });
+      irPara('view-conectar');
+    }
+
+    async function dispararAPI(metodo, rota, bodyObjeto = null) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const config = { method: metodo, headers };
+      if (bodyObjeto) config.body = JSON.stringify(bodyObjeto);
+
+      try {
+        const res = await fetch(baseUrl + rota, config);
+        const textoResposta = await res.text();
+        let dados = null;
+
+        if (textoResposta) {
+          try { dados = JSON.parse(textoResposta); } catch (err) { dados = { respostaCruta: textoResposta }; }
+        } else {
+          dados = { aviso: "Servidor não enviou conteúdo (Body vazio)." };
+        }
+
+        registrarLog(metodo, rota, bodyObjeto, res.status, dados);
+        return { ok: res.ok, status: res.status, dados };
+      } catch (e) {
+        registrarLog(metodo, rota, bodyObjeto, 500, { erro: e.message });
+        return { ok: false, status: 500, dados: null };
+      }
+    }
+
+    async function enviarCadastro() {
+      const payload = {
+        usuario: document.getElementById('cadUser').value,
+        senha: document.getElementById('cadPass').value,
+        email: document.getElementById('cadEmail').value,
+        nome: document.getElementById('cadNome').value,
+        biografia: document.getElementById('cadBio').value
+      };
+      const res = await dispararAPI('POST', '/usuarios', payload);
+      if(res.ok) irPara('view-visitante'); 
+    }
+
+    async function fazerLogin() {
+      const payload = {
+        usuario: document.getElementById('logUser').value,
+        senha: document.getElementById('logPass').value
+      };
+      
+      const res = await dispararAPI('POST', '/usuarios/login', payload);
+      
+      if (res.ok && res.dados.dados?.token) {
+        token = res.dados.dados.token;
+        meuIdLogado = res.dados.dados.usuario?.id;
+        
+        const nomeUsuarioLogado = res.dados.dados.usuario?.usuario;
+        ehAdmin = (nomeUsuarioLogado === 'admin');
+        atualizarInterfaceAdmin(); // Liga/Desliga a interface admin aqui
+
+        atualizarPainelServidor('logar', meuIdLogado, res.dados.dados.usuario?.nome);
+        irPara('view-logado');
+      }
+    }
+
+    async function listarTodos() {
+      await dispararAPI('GET', `/usuarios`);
+    }
+
+    async function pedirDados() {
+      if (!meuIdLogado) return;
+      const res = await dispararAPI('GET', `/usuarios/${meuIdLogado}`);
+      
+      if (res.ok) {
+        const d = res.dados.dados || res.dados;
+        const htmlFormatado = `
+          <div style="color: #a1a1aa; margin-bottom: 5px;">Nome: <span style="color: #fff;">${d.nome || d.nomeCompleto}</span></div>
+          <div style="color: #a1a1aa; margin-bottom: 5px;">Usuário: <span style="color: var(--accent);">@${d.usuario}</span></div>
+          <div style="color: #a1a1aa; margin-bottom: 5px;">E-mail: <span style="color: #fff;">${d.email}</span></div>
+          <div style="color: #a1a1aa;">Biografia: <span style="color: #fff;">${d.biografia || 'Nenhuma biografia informada.'}</span></div>
+        `;
+        document.getElementById('dadosContaBox').innerHTML = htmlFormatado;
+        irPara('view-dados');
+      }
+    }
+
+    async function enviarAtualizacao() {
+      // Se tiver campo de admin e ele preencheu, usa. Senão, usa o próprio ID
+      const campoAlvo = document.getElementById('updIdAlvo');
+      const idAlvo = (campoAlvo && campoAlvo.value.trim() !== '') ? campoAlvo.value.trim() : meuIdLogado;
+      
+      if (!idAlvo) return;
+
+      const payload = {};
+      const nomeDigitado = document.getElementById('updNome').value;
+      const userDigitado = document.getElementById('updUser').value;
+      const bio = document.getElementById('updBio').value;
+      const pass = document.getElementById('updPass').value;
+
+      if (nomeDigitado) payload.nome = nomeDigitado;
+      if (userDigitado) payload.usuario = userDigitado;
+      if (bio) payload.biografia = bio;
+      if (pass) payload.senha = pass;
+
+      const res = await dispararAPI('PATCH', `/usuarios/${idAlvo}`, payload);
+      if (res.ok) {
+        document.getElementById('updNome').value = '';
+        document.getElementById('updUser').value = '';
+        document.getElementById('updBio').value = '';
+        document.getElementById('updPass').value = '';
+        if (campoAlvo) campoAlvo.value = '';
+        irPara('view-logado');
+      }
+    }
+
+    async function enviarDelecao() {
+      const campoAlvo = document.getElementById('delIdAlvo');
+      const idAlvo = (campoAlvo && campoAlvo.value.trim() !== '') ? campoAlvo.value.trim() : meuIdLogado;
+      
+      if (!idAlvo) return;
+      
+      const res = await dispararAPI('DELETE', `/usuarios/${idAlvo}`);
+      
+      // Se apagou a própria conta, desloga.
+      if (res.ok && idAlvo.toString() === meuIdLogado.toString()) {
+        fazerLogout();
+      } else if (res.ok) {
+        if (campoAlvo) campoAlvo.value = '';
+        irPara('view-logado');
+      }
+    }
+
+    async function fazerLogout() {
+      await dispararAPI('POST', '/usuarios/logout');
+      token = '';
+      meuIdLogado = null;
+      ehAdmin = false;
+      atualizarInterfaceAdmin(); // Desliga a interface admin
+      atualizarPainelServidor('conectar'); // Volta para visitante conectado
+      irPara('view-visitante');
+    }
+
+    window.onload = async () => {
+      atualizarInterfaceAdmin(); // Garante que começa escondido
+      try {
+        const res = await fetch('http://localhost:22222/descobrir-ip');
+        const dados = await res.json();
+        document.getElementById('inpIp').value = dados.ip;
+        document.getElementById('meuIpExibicao').innerText = dados.ip;
+      } catch (e) {
+        document.getElementById('meuIpExibicao').innerText = "127.0.0.1 (Localhost)";
+      }
+    };
+  </script>
+</body>
+</html>
