@@ -140,9 +140,15 @@
           <h3>Meu Painel <span id="seloAdmin" style="display: none; background: var(--accent); color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 10px;">ADMINISTRADOR</span></h3>
           <p class="instrucao" style="color: var(--accent);">Login efetuado com sucesso.</p>
 
+          <div class="alerta-teste apenas-admin">
+            <label style="color: #fff;">(Modo Admin) Ver Perfil Alvo:</label>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para ver o seu. Preencha o ID para ver dados de terceiros.</p>
+            <input type="number" id="getIdAlvo" placeholder="Ex: 2">
+          </div>
+
           <div class="btn-grid">
             <button onclick="listarTodos()" class="apenas-admin">Listar todos os usuários</button>
-            <button onclick="pedirDados()">Pedir dados da minha conta</button>
+            <button onclick="pedirDados()">Pedir dados da conta</button>
             <button onclick="irPara('view-atualizar')">Atualizar dados</button>
             <button onclick="irPara('view-apagar')" class="perigo">Apagar conta</button>
             <button onclick="fazerLogout()" class="secundario">Logout</button>
@@ -159,9 +165,9 @@
           <h3>Atualizar Cadastro</h3>
           <p class="instrucao">Preencha apenas o que deseja mudar.</p>
           
-          <div class="alerta-teste apenas-admin">
-            <label style="color: #fff;">(Modo Admin) ID Alvo:</label>
-            <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para atualizar o seu. Preencha para alterar conta de terceiros.</p>
+          <div class="alerta-teste">
+            <label style="color: #fff;">Testar Vulnerabilidade (ID Alvo):</label>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para atualizar o seu. Preencha para tentar alterar conta de terceiros.</p>
             <input type="number" id="updIdAlvo" placeholder="Ex: 2">
           </div>
 
@@ -178,8 +184,8 @@
         <div id="view-apagar" class="view">
           <h3 style="color: var(--error); border-color: var(--error);">Atenção</h3>
           
-          <div class="alerta-teste apenas-admin" style="border-color: var(--error);">
-            <label style="color: #fff;">(Modo Admin) ID Alvo:</label>
+          <div class="alerta-teste" style="border-color: var(--error);">
+            <label style="color: #fff;">Testar Vulnerabilidade (ID Alvo):</label>
             <p style="font-size: 0.75rem; color: #a1a1aa; margin: 0 0 0.5rem 0;">Deixe em branco para apagar a própria conta. Preencha para tentar apagar terceiros.</p>
             <input type="number" id="delIdAlvo" placeholder="Ex: 2">
           </div>
@@ -201,7 +207,12 @@
     </div>
 
     <div id="terminal-cliente" class="terminal-view active"></div>
-    <div id="terminal-servidor" class="terminal-view"></div>
+    <div id="terminal-servidor" class="terminal-view">
+      <div class="log-entry" style="border-left-color: var(--accent);">
+        <span class="log-title" style="color: var(--accent);">[MONITORAMENTO DO BACKEND]</span>
+        <span class="log-server">O HTML é apenas o Cliente. Para ver os logs reais das pessoas conectando no seu servidor local, acompanhe o terminal do VSCode onde o Node.js está rodando.</span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -245,7 +256,13 @@
 
     function limparLogs() {
       document.getElementById('terminal-cliente').innerHTML = '';
-      document.getElementById('terminal-servidor').innerHTML = '';
+      // Mantém a mensagem fixa na aba do servidor
+      document.getElementById('terminal-servidor').innerHTML = `
+        <div class="log-entry" style="border-left-color: var(--accent);">
+          <span class="log-title" style="color: var(--accent);">[MONITORAMENTO DO BACKEND]</span>
+          <span class="log-server">O HTML é apenas o Cliente. Para ver os logs reais das pessoas conectando no seu servidor local, acompanhe o terminal do VSCode onde o Node.js está rodando.</span>
+        </div>
+      `;
     }
 
     function registrarLog(metodo, rota, corpoReq, status, corpoRes) {
@@ -253,24 +270,16 @@
       const reqFormatada = corpoReq ? `<pre>${JSON.stringify(corpoReq, null, 2)}</pre>` : '<pre>Sem payload de envio.</pre>';
       const resFormatada = corpoRes ? `<pre>${JSON.stringify(corpoRes, null, 2)}</pre>` : '<pre>Sem corpo de resposta.</pre>';
 
+      // Injeta APENAS no terminal do cliente, porque foi você (o cliente) quem disparou a requisição
       const htmlCliente = `
         <div class="log-entry ${isError ? 'log-error' : ''}">
           <span class="log-title">[${new Date().toLocaleTimeString()}] ${metodo} ${rota}</span>
-          <span class="log-user">Você (Usuário) mandou:</span> ${reqFormatada}
-          <span class="log-server">Servidor respondeu: [Status: ${status}]</span> ${resFormatada}
+          <span class="log-user">Você (Cliente) mandou:</span> ${reqFormatada}
+          <span class="log-server">Servidor Remoto respondeu: [Status: ${status}]</span> ${resFormatada}
         </div>
       `;
       
-      const htmlServidor = `
-        <div class="log-entry ${isError ? 'log-error' : ''}">
-          <span class="log-title">[${new Date().toLocaleTimeString()}] ${metodo} ${rota}</span>
-          <span class="log-user">Usuário mandou:</span> ${reqFormatada}
-          <span class="log-server">Você (Servidor) respondeu: [Status: ${status}]</span> ${resFormatada}
-        </div>
-      `;
-
       document.getElementById('terminal-cliente').insertAdjacentHTML('afterbegin', htmlCliente);
-      document.getElementById('terminal-servidor').insertAdjacentHTML('afterbegin', htmlServidor);
     }
 
     function atualizarPainelServidor(acao, id, nome) {
@@ -388,8 +397,15 @@
     }
 
     async function pedirDados() {
-      if (!meuIdLogado) return;
-      const res = await dispararAPI('GET', `/usuarios/${meuIdLogado}`);
+      const campoAlvo = document.getElementById('getIdAlvo');
+      const idAlvo = (campoAlvo && campoAlvo.value.trim() !== '') ? campoAlvo.value.trim() : meuIdLogado;
+      
+      if (!idAlvo) {
+        alert("Erro: Nenhum ID identificado para a busca.");
+        return;
+      }
+      
+      const res = await dispararAPI('GET', `/usuarios/${idAlvo}`);
       
       if (res.ok) {
         const d = res.dados.dados || res.dados;
@@ -400,7 +416,10 @@
           <div style="color: #a1a1aa;">Biografia: <span style="color: #fff;">${d.biografia || 'Nenhuma biografia informada.'}</span></div>
         `;
         document.getElementById('dadosContaBox').innerHTML = htmlFormatado;
+        if (campoAlvo) campoAlvo.value = '';
         irPara('view-dados');
+      } else {
+        alert(`Falha ao buscar os dados (Erro ${res.status}): ${res.dados?.mensagem || 'Verifique os logs no terminal.'}`);
       }
     }
 
