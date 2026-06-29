@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Insta - App</title>
+  <style>
+    :root {
+      --bg-deep: #0D0D0D; 
+      --card-bg: #141414; 
+      --border: #2A2A2A; 
+      --primary: #6B4EFF; 
+      --primary-hover: #8A73FF;
+      --text: #F8FAFC;
+      --text-muted: #A1A1AA;
+    }
+
+    body {
+      background-color: var(--bg-deep); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; display: flex; justify-content: center;
+    }
+
+    /* Container simulando a tela de um celular SaaS */
+    .app-container {
+      width: 100%; max-width: 500px; min-height: 100vh;
+      background-color: var(--bg-deep);
+      border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+      position: relative; padding-bottom: 80px; box-sizing: border-box;
+    }
+
+    .topbar {
+      position: sticky; top: 0; background: rgba(13, 13, 13, 0.85);
+      backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+      padding: 1rem; display: flex; justify-content: space-between; align-items: center;
+      z-index: 10;
+    }
+
+    .topbar-title { font-weight: bold; font-size: 1.2rem; color: var(--primary); }
+
+    .btn-explorar {
+      background: var(--card-bg); border: 1px solid var(--primary); color: var(--primary);
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem;
+      transition: 0.2s;
+    }
+    .btn-explorar:hover { background: var(--primary); color: #fff; }
+
+    .feed { padding: 1rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .post-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; animation: fadeIn 0.4s ease;
+    }
+
+    .post-header { padding: 10px 15px; font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    
+    .post-image { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #000; display: block; }
+
+    .post-footer { padding: 15px; }
+    
+    .action-bar { display: flex; gap: 1rem; margin-bottom: 10px; }
+    .btn-action { background: none; border: none; color: var(--text); font-size: 1.2rem; cursor: pointer; padding: 0; transition: color 0.2s; }
+    .btn-action:hover, .curtido { color: var(--primary); text-shadow: 0 0 10px rgba(107, 78, 255, 0.5); }
+
+    .legenda { font-size: 0.9rem; line-height: 1.4; color: var(--text-muted); }
+    .legenda span { font-weight: bold; color: var(--text); margin-right: 5px; }
+
+    /* Modais Genéricos */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+    
+    .modal-content {
+      background: var(--card-bg); border: 1px solid var(--primary);
+      box-shadow: 0 0 20px rgba(107, 78, 255, 0.15);
+      border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 400px;
+    }
+
+    /* Lista de Usuários */
+    .user-list-item {
+      padding: 12px; border-bottom: 1px solid var(--border); display: flex; 
+      justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;
+    }
+    .user-list-item:hover { background: #1a1a1a; }
+    .user-list-item:last-child { border-bottom: none; }
+
+    input[type="file"] { margin-bottom: 1rem; width: 100%; color: var(--text-muted); }
+    textarea {
+      width: 100%; background: var(--bg-deep); border: 1px solid var(--border);
+      color: var(--text); padding: 0.8rem; border-radius: 8px; box-sizing: border-box;
+      resize: vertical; min-height: 80px; margin-bottom: 1rem;
+    }
+    textarea:focus { outline: none; border-color: var(--primary); }
+
+    .btn-publish {
+      background: var(--primary); color: #fff; border: none; padding: 0.8rem;
+      border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(107, 78, 255, 0.3); transition: 0.2s;
+    }
+    .btn-publish:hover { background: var(--primary-hover); transform: translateY(-2px); }
+    .btn-cancel { background: transparent; color: var(--text-muted); border: none; width: 100%; margin-top: 10px; cursor: pointer; }
+
+    /* Botão Flutuante (FAB) */
+    .fab {
+      position: fixed; bottom: 2rem; right: calc(50% - 220px);
+      background: var(--primary); width: 60px; height: 60px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; color: #fff;
+      font-size: 2rem; cursor: pointer; box-shadow: 0 4px 20px rgba(107, 78, 255, 0.5); border: none; transition: 0.2s;
+    }
+    .fab:hover { transform: scale(1.1); }
+    @media (max-width: 500px) { .fab { right: 2rem; } }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="topbar">
+      <span class="topbar-title" id="tituloApp">Insta App</span>
+      <button class="btn-explorar" onclick="abrirPerfis()">👥 Explorar Perfis</button>
+    </div>
+    
+    <div class="feed" id="feedContainer">
+      <div style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Carregando...</div>
+    </div>
+  </div>
+
+  <button class="fab" onclick="abrirModalPost()">+</button>
+
+  <div class="modal-overlay" id="modalPost">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; color: var(--text);">Nova Publicação</h3>
+      <label style="font-size: 0.8rem; color: var(--text-muted);">Foto (Apenas JPG/PNG):</label>
+      <input type="file" id="inputFile" accept="image/jpeg, image/png">
+      <label style="font-size: 0.8rem; color: var(--text-muted);">Legenda (sem caracteres especiais):</label>
+      <textarea id="inputLegenda" placeholder="Escreva algo..."></textarea>
+      <button class="btn-publish" onclick="enviarPost()">Publicar</button>
+      <button class="btn-cancel" onclick="fecharModalPost()">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalPerfis">
+    <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column; padding: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0; color: var(--text);">Usuários da Rede</h3>
+        <button onclick="fecharPerfis()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem;">&times;</button>
+      </div>
+      <div id="listaUsuariosApp" style="overflow-y: auto; flex: 1; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-deep);">
+        </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('api_token');
+    const baseUrl = localStorage.getItem('api_baseUrl');
+    const meuId = localStorage.getItem('api_meuId');
+
+    if (!token || !baseUrl) {
+      alert("Acesso negado. Faça login no Painel de Testes primeiro.");
+      window.close();
+    }
+
+    // Variável de Estado para saber em qual tela estamos
+    let modoVisualizacao = { tipo: 'global', idAlvo: null, nomeUsuario: null };
+
+    // Modais
+    function abrirModalPost() { document.getElementById('modalPost').classList.add('active'); }
+    function fecharModalPost() { document.getElementById('modalPost').classList.remove('active'); }
+    function fecharPerfis() { document.getElementById('modalPerfis').classList.remove('active'); }
+
+    // Rádio Transmissor
+    const canalRádio = new BroadcastChannel('insta_logs');
+
+    async function apiApp(metodo, rota, corpo = null) {
+      const url = baseUrl + rota;
+      const config = { method: metodo, headers: { 'Authorization': `Bearer ${token}` } };
+      if (corpo) { config.headers['Content-Type'] = 'application/json'; config.body = JSON.stringify(corpo); }
+
+      try {
+        const res = await fetch(url, config);
+        const clone = res.clone(); 
+        const texto = await clone.text();
+        
+        let dados;
+        try { dados = JSON.parse(texto); } catch(e) { dados = { resposta: texto }; }
+
+        canalRádio.postMessage({ metodo, rota, corpoReq: corpo, status: res.status, corpoRes: dados });
+        return { ok: res.ok, status: res.status, dados };
+      } catch (e) {
+        canalRádio.postMessage({ metodo, rota, corpoReq: corpo, status: 500, corpoRes: { erro: e.message } });
+        return { ok: false, status: 500, dados: { mensagem: "Falha de rede" } };
+      }
+    }
+    
+    // Função Auxiliar de Recarregamento
+    function recarregarTelaAtual() {
+      if (modoVisualizacao.tipo === 'global') carregarFeed();
+      else verPostsDoUsuario(modoVisualizacao.idAlvo, modoVisualizacao.nomeUsuario);
+    }
+
+    // [ITEM 6] PEDIR LISTA DE USUÁRIOS
+    async function abrirPerfis() {
+      const res = await apiApp('GET', '/usuarios');
+      if (res.ok) {
+        const usuarios = res.dados.dados.usuarios;
+        const container = document.getElementById('listaUsuariosApp');
+        
+        container.innerHTML = usuarios.map(u => `
+          <div class="user-list-item" onclick="verPostsDoUsuario(${u.id}, '${u.usuario}')">
+            <div>
+              <div style="font-weight: bold; color: var(--text);">${u.nome}</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">@${u.usuario}</div>
+            </div>
+            <div style="color: var(--primary); font-size: 1.2rem;">➔</div>
+          </div>
+        `).join('');
+        
+        document.getElementById('modalPerfis').classList.add('active');
+      } else {
+        alert("Erro ao buscar usuários.");
+      }
+    }
+
+    // [ITEM 7] CARREGAR POSTAGENS DE UM USUÁRIO ESPECÍFICO
+    async function verPostsDoUsuario(idAlvo, nomeUsuario) {
+      fecharPerfis();
+      modoVisualizacao = { tipo: 'perfil', idAlvo: idAlvo, nomeUsuario: nomeUsuario };
+      
+      document.getElementById('tituloApp').innerText = `Perfil de @${nomeUsuario}`;
+      const container = document.getElementById('feedContainer');
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Buscando publicações...</div>';
+
+      const res = await apiApp('GET', `/usuarios/${idAlvo}/posts`);
+      
+      if (res.ok) {
+        const posts = res.dados.posts || [];
+        
+        // Botão para voltar ao Feed normal
+        container.innerHTML = `
+          <button onclick="voltarFeedGlobal()" style="width: 100%; padding: 12px; margin-bottom: 1rem; background: var(--card-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+            ⬅ Voltar ao Feed Global
+          </button>
+        `;
+
+        if (posts.length === 0) {
+          container.innerHTML += '<div style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Este usuário ainda não tem publicações.</div>';
+          return;
+        }
+
+        posts.forEach(post => {
+          const ehMeuPost = idAlvo.toString() === meuId.toString();
+          const botoesAutor = ehMeuPost ? `
+            <div style="display: flex; gap: 0.5rem; margin-top: 8px;">
+              <button onclick="editarPost(${post.id}, '${post.legenda}')" style="background: #333; color: #fff; border: 1px solid var(--border); padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">✏️ Editar</button>
+              <button onclick="deletarPost(${post.id})" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">🗑️ Excluir</button>
+            </div>
+          ` : '';
+
+          const card = `
+            <div class="post-card">
+              <div class="post-header">
+                <span>@${nomeUsuario}</span>
+                ${ehMeuPost ? '<span style="font-size: 0.7rem; background: var(--primary); padding: 2px 6px; border-radius: 10px;">Seu Post</span>' : ''}
+              </div>
+              <img src="${post.imagem}" class="post-image" alt="Foto do Post">
+              <div class="post-footer">
+                <div class="action-bar">
+                  <button class="btn-action" onclick="curtirPost(${idAlvo}, ${post.id})">🤍 ${post.curtidas || 0}</button>
+                </div>
+                <div class="legenda"><span>${nomeUsuario}</span>${post.legenda}</div>
+                ${botoesAutor}
+              </div>
+            </div>
+          `;
+          container.insertAdjacentHTML('beforeend', card);
+        });
+      } else {
+        container.innerHTML = `<div style="text-align: center; color: var(--error); margin-top: 2rem;">Erro ao carregar o perfil.</div>`;
+      }
+    }
+
+    // RETORNAR AO FEED NORMAL
+    function voltarFeedGlobal() {
+      modoVisualizacao = { tipo: 'global', idAlvo: null, nomeUsuario: null };
+      document.getElementById('tituloApp').innerText = 'Insta App';
+      carregarFeed();
+    }
+
+    // CARREGAR O FEED GLOBAL
+    async function carregarFeed() {
+      const res = await apiApp('GET', '/feed');
+      if (res.ok) {
+        const posts = res.dados.dados;
+        const container = document.getElementById('feedContainer');
+        container.innerHTML = ''; 
+
+        if (posts.length === 0) {
+          container.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Seu feed está vazio.<br>Seja o primeiro a postar!</div>';
+        } else {
+          posts.forEach(post => {
+            const ehMeuPost = post.autor.id.toString() === meuId.toString();
+            const botoesAutor = ehMeuPost ? `
+              <div style="display: flex; gap: 0.5rem; margin-top: 8px;">
+                <button onclick="editarPost(${post.id}, '${post.legenda}')" style="background: #333; color: #fff; border: 1px solid var(--border); padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">✏️ Editar</button>
+                <button onclick="deletarPost(${post.id})" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">🗑️ Excluir</button>
+              </div>
+            ` : '';
+
+            const card = `
+              <div class="post-card">
+                <div class="post-header">
+                  <span>@${post.autor.usuario}</span>
+                  ${ehMeuPost ? '<span style="font-size: 0.7rem; background: var(--primary); padding: 2px 6px; border-radius: 10px;">Seu Post</span>' : ''}
+                </div>
+                <img src="${post.imagem}" class="post-image" alt="Foto do Post">
+                <div class="post-footer">
+                  <div class="action-bar">
+                    <button class="btn-action" onclick="curtirPost(${post.autor.id}, ${post.id})">🤍 ${post.curtidas}</button>
+                  </div>
+                  <div class="legenda"><span>${post.autor.nome}</span>${post.legenda}</div>
+                  ${botoesAutor}
+                </div>
+              </div>
+            `;
+            container.insertAdjacentHTML('beforeend', card);
+          });
+        }
+      }
+    }
+
+    // NOVA POSTAGEM
+    async function enviarPost() {
+      const fileInput = document.getElementById('inputFile').files[0];
+      const legenda = document.getElementById('inputLegenda').value;
+      if (!fileInput || !legenda) return alert("Selecione foto e legenda.");
+
+      const reader = new FileReader();
+      reader.onloadend = async function() {
+        const payload = { imagem: reader.result, legenda };
+        const res = await apiApp('POST', `/usuarios/${meuId}/posts`, payload);
+        
+        if (res.ok) {
+          fecharModalPost();
+          document.getElementById('inputFile').value = '';
+          document.getElementById('inputLegenda').value = '';
+          voltarFeedGlobal(); // Força a tela a voltar pro feed global para ver a postagem nova
+        } else {
+          alert(`Erro: ${res.dados?.mensagem}`);
+        }
+      };
+      reader.readAsDataURL(fileInput);
+    }
+
+    // CURTIR / DESCURTIR POST (Toggle)
+    async function curtirPost(idAutor, idPost) {
+      const res = await apiApp('POST', `/usuarios/${idAutor}/posts/${idPost}`);
+      if (res.ok) {
+        recarregarTelaAtual();
+      } else if (res.dados.mensagem === 'Você já curtiu esta postagem.') {
+        const resDelete = await apiApp('DELETE', `/usuarios/${idAutor}/posts/${idPost}/curtir`);
+        if (resDelete.ok) recarregarTelaAtual();
+      }
+    }
+
+    // ATUALIZAR POSTAGEM
+    async function editarPost(idPost, legendaAtual) {
+      const novaLegenda = prompt("Nova legenda (Sem acentos):", legendaAtual);
+      if (!novaLegenda || novaLegenda.trim() === "") return;
+      
+      const res = await apiApp('PATCH', `/usuarios/${meuId}/posts/${idPost}`, { legenda: novaLegenda });
+      if (res.ok) recarregarTelaAtual();
+      else alert(`Erro: ${res.dados?.mensagem}`);
+    }
+
+    // APAGAR POSTAGEM
+    async function deletarPost(idPost) {
+      if (!confirm("Excluir permanentemente esta publicação?")) return;
+      const res = await apiApp('DELETE', `/usuarios/${meuId}/posts/${idPost}`);
+      if (res.ok) recarregarTelaAtual();
+      else alert(`Erro: ${res.dados?.mensagem}`);
+    }
+    
+    // GATILHO INICIAL
+    window.onload = carregarFeed;
+  </script>
+</body>
+</html>

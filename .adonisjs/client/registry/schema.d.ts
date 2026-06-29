@@ -31,6 +31,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['login']>>>
     }
   }
+  'monitor.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/monitor'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/monitors_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/monitors_controller').default['index']>>>
+    }
+  }
   'usuarios.index': {
     methods: ["GET","HEAD"]
     pattern: '/usuarios'
@@ -91,40 +103,88 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['logout']>>>
     }
   }
+  'postagens.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/usuarios/:id_usuario/posts'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id_usuario: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['index']>>>
+    }
+  }
   'postagens.store': {
     methods: ["POST"]
-    pattern: '/postagens'
+    pattern: '/usuarios/:id_usuario/posts'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#controllers/postagens_controller').default)['validator']>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#controllers/postagens_controller').default)['validator']>>
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id_usuario: ParamValue }
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['store']>>>
+    }
+  }
+  'postagens.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/usuarios/:id_usuario/posts/:id_post'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id_usuario: ParamValue; id_post: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['show']>>>
     }
   }
   'postagens.update': {
     methods: ["PATCH"]
-    pattern: '/postagens/:id'
+    pattern: '/usuarios/:id_usuario/posts/:id_post'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#controllers/postagens_controller').default)['validator']>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#controllers/postagens_controller').default)['validator']>>
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id_usuario: ParamValue; id_post: ParamValue }
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['update']>>>
     }
   }
   'postagens.destroy': {
     methods: ["DELETE"]
-    pattern: '/postagens/:id'
+    pattern: '/usuarios/:id_usuario/posts/:id_post'
     types: {
       body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id_usuario: ParamValue; id_post: ParamValue }
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/postagens_controller').default['destroy']>>>
+    }
+  }
+  'curtidas.curtir': {
+    methods: ["POST"]
+    pattern: '/usuarios/:id_usuario/posts/:id_post'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id_usuario: ParamValue; id_post: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['curtir']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['curtir']>>>
+    }
+  }
+  'curtidas.descurtir': {
+    methods: ["DELETE"]
+    pattern: '/usuarios/:id_usuario/posts/:id_post/curtir'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id_usuario: ParamValue; id_post: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['descurtir']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['descurtir']>>>
     }
   }
   'seguidores.seguir': {
@@ -173,30 +233,6 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/seguidores_controller').default['seguidores']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/seguidores_controller').default['seguidores']>>>
-    }
-  }
-  'curtidas.curtir': {
-    methods: ["POST"]
-    pattern: '/postagens/:id/curtir'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['curtir']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['curtir']>>>
-    }
-  }
-  'curtidas.descurtir': {
-    methods: ["DELETE"]
-    pattern: '/postagens/:id/curtir'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['descurtir']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/curtidas_controller').default['descurtir']>>>
     }
   }
   'comentarios.store': {

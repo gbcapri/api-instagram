@@ -9,6 +9,7 @@ export const controllers = {
   Comentarios: () => import('#controllers/comentarios_controller'),
   Curtidas: () => import('#controllers/curtidas_controller'),
   Feeds: () => import('#controllers/feeds_controller'),
+  Monitors: () => import('#controllers/monitors_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   Postagens: () => import('#controllers/postagens_controller'),
   Profile: () => import('#controllers/profile_controller'),

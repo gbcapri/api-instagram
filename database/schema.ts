@@ -32,68 +32,36 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class ComentarioSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'postagemId', 'texto', 'updatedAt', 'userId'] as const
-  $columns = ComentarioSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare postagemId: number | null
-  @column()
-  declare texto: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-  @column()
-  declare userId: number | null
-}
-
 export class CurtidaSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'postagemId', 'updatedAt', 'userId'] as const
+  static $columns = ['createdAt', 'id', 'postId', 'updatedAt', 'usuarioId'] as const
   $columns = CurtidaSchema.$columns
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare createdAt: DateTime | null
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare postagemId: number | null
+  declare postId: number | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
-  declare userId: number | null
+  declare usuarioId: number | null
 }
 
-export class PostagenSchema extends BaseModel {
-  static $columns = ['createdAt', 'fotoUrl', 'id', 'legenda', 'updatedAt', 'userId'] as const
-  $columns = PostagenSchema.$columns
+export class PostSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'imagem', 'legenda', 'updatedAt', 'usuarioId'] as const
+  $columns = PostSchema.$columns
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare fotoUrl: string
+  declare createdAt: DateTime | null
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare imagem: string
   @column()
   declare legenda: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
-  declare userId: number
-}
-
-export class SeguidoreSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'seguidoId', 'seguidorId', 'updatedAt'] as const
-  $columns = SeguidoreSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare seguidoId: number | null
-  @column()
-  declare seguidorId: number | null
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare usuarioId: number | null
 }
 
 export class UserSchema extends BaseModel {

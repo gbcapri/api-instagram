@@ -1,7 +1,9 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
-import { BaseModel, column, beforeSave, manyToMany } from '@adonisjs/lucid/orm'
-import type { ManyToMany } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, beforeSave, manyToMany, hasMany } from '@adonisjs/lucid/orm'
+import type { ManyToMany, HasMany } from '@adonisjs/lucid/types/relations'
+import Post from '#models/post'
+import Curtida from '#models/curtida'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
@@ -16,8 +18,6 @@ export default class User extends BaseModel {
   @column()
   declare email: string
 
-  // A opção serializeAs: null garante que a senha NUNCA seja retornada 
-  // nas respostas da API (mesmo estando criptografada)
   @column({ serializeAs: null })
   declare senha: string
 
@@ -61,4 +61,12 @@ export default class User extends BaseModel {
       user.senha = await hash.make(user.senha)
     }
   }
+
+  // Meus Posts
+  @hasMany(() => Post, { foreignKey: 'usuarioId' })
+  declare posts: HasMany<typeof Post>
+
+  // Minhas Curtidas
+  @hasMany(() => Curtida, { foreignKey: 'usuarioId' })
+  declare curtidas: HasMany<typeof Curtida>
 }

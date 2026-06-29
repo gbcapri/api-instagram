@@ -23,6 +23,7 @@ server.use([
   () => import('@adonisjs/cors/cors_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
+  () => import('#middleware/log_request_middleware')
 ])
 
 /**

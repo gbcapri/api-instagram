@@ -13,20 +13,25 @@ export interface ApiDefinition {
     login: typeof routes['auth.login']
     logout: typeof routes['auth.logout']
   }
+  monitor: {
+    index: typeof routes['monitor.index']
+  }
   postagens: {
+    index: typeof routes['postagens.index']
     store: typeof routes['postagens.store']
+    show: typeof routes['postagens.show']
     update: typeof routes['postagens.update']
     destroy: typeof routes['postagens.destroy']
+  }
+  curtidas: {
+    curtir: typeof routes['curtidas.curtir']
+    descurtir: typeof routes['curtidas.descurtir']
   }
   seguidores: {
     seguir: typeof routes['seguidores.seguir']
     deixarDeSeguir: typeof routes['seguidores.deixar_de_seguir']
     seguindo: typeof routes['seguidores.seguindo']
     seguidores: typeof routes['seguidores.seguidores']
-  }
-  curtidas: {
-    curtir: typeof routes['curtidas.curtir']
-    descurtir: typeof routes['curtidas.descurtir']
   }
   comentarios: {
     store: typeof routes['comentarios.store']

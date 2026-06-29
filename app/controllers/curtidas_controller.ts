@@ -1,59 +1,102 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Postagem from '#models/postagem'
-import User from '#models/user'
-import jwt from 'jsonwebtoken'
+import Post from '#models/post'
+import Curtida from '#models/curtida'
 
 export default class CurtidasController {
   
-  // Função auxiliar para pegar quem está logado
-  private async getUsuarioLogado(request: any) {
-    const authHeader = request.header('authorization')
-    if (!authHeader) throw new Error('Token ausente')
-    const token = authHeader.split(' ')[1]
-    const secretKey = process.env.APP_KEY || 'chave_secreta_padrao_muito_segura'
-    const payload = jwt.verify(token, secretKey) as any
-    return await User.findByOrFail('usuario', payload.usuario)
-  }
+  // [1] CURTIR POST (POST /usuarios/:id_usuario/posts/:id_post)
+  async curtir(ctx: HttpContext) {
+    const { response, params } = ctx
+    
+    // Agora estamos lendo exatamente a variável "userId" que o seu middleware cria!
+    const meuIdLogado = ctx.userId 
 
-  // RNF09: Curtir uma postagem
-  async curtir({ params, request, response }: HttpContext) {
+    if (!meuIdLogado) {
+      return response.status(401).send({ status: 'erro', codigo: 'NAO_AUTORIZADO', mensagem: 'Token inválido ou usuário não identificado.' })
+    }
+
+    // 1. Verifica se o post existe e se pertence ao usuário da URL
+    const post = await Post.query()
+      .where('id', params.id_post)
+      .andWhere('usuarioId', params.id_usuario)
+      .first()
+
+    if (!post) {
+      return response.status(404).send({ status: 'erro', codigo: 'NAO_ENCONTRADO', mensagem: 'Post não encontrado.' })
+    }
+
+    // 2. Tenta registrar a curtida
     try {
-      const user = await this.getUsuarioLogado(request)
-      const postagem = await Postagem.find(params.id)
+      await Curtida.create({
+        usuarioId: Number(meuIdLogado), // Convertendo para número, já que o banco exige Inteiro
+        postId: post.id
+      })
 
-      if (!postagem) {
-        return response.status(404).send({ status: 'erro', mensagem: 'Postagem não encontrada' })
+      return response.status(201).send({
+        status: 'sucesso',
+        codigo: 'OPERACAO_SUCESSO',
+        mensagem: 'Curtida adicionada com sucesso'
+      })
+
+    } catch (erro: any) {
+      // Código 23505 = Violar a regra "unique" no PostgreSQL
+      if (erro.code === '23505') {
+        return response.status(400).send({ 
+          status: 'erro', 
+          codigo: 'DADOS_INVALIDOS', 
+          mensagem: 'Você já curtiu esta postagem.' 
+        })
       }
-
-      // Adiciona o Like na tabela pivô
-      await postagem.related('curtidores').attach([user.id])
-
-      return response.status(200).send({ status: 'sucesso', mensagem: 'Postagem curtida!' })
-    } catch (error: any) {
-      // Se estourar a regra 'unique' do banco, é porque já curtiu
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-        return response.status(400).send({ status: 'erro', mensagem: 'Você já curtiu esta postagem.' })
-      }
-      return response.status(500).send({ status: 'erro', mensagem: error.message })
+      
+      return response.status(500).send({ 
+        status: 'erro', 
+        codigo: 'ERRO_SERVIDOR', 
+        mensagem: 'Falha interna ao curtir o post.' 
+      })
     }
   }
 
-  // RNF10: Descurtir uma postagem
-  async descurtir({ params, request, response }: HttpContext) {
-    try {
-      const user = await this.getUsuarioLogado(request)
-      const postagem = await Postagem.find(params.id)
+  // [2] DESCURTIR POST (DELETE /usuarios/:id_usuario/posts/:id_post/curtir)
+  async descurtir(ctx: HttpContext) {
+    const { response, params } = ctx
+    
+    const meuIdLogado = ctx.userId
 
-      if (!postagem) {
-        return response.status(404).send({ status: 'erro', mensagem: 'Postagem não encontrada' })
-      }
-
-      // Remove o Like da tabela pivô
-      await postagem.related('curtidores').detach([user.id])
-
-      return response.status(200).send({ status: 'sucesso', mensagem: 'Curtida removida.' })
-    } catch (error: any) {
-      return response.status(500).send({ status: 'erro', mensagem: error.message })
+    if (!meuIdLogado) {
+      return response.status(401).send({ status: 'erro', codigo: 'NAO_AUTORIZADO', mensagem: 'Token inválido ou usuário não identificado.' })
     }
+
+    // 1. Verifica se o post existe
+    const post = await Post.query()
+      .where('id', params.id_post)
+      .andWhere('usuarioId', params.id_usuario)
+      .first()
+
+    if (!post) {
+      return response.status(404).send({ status: 'erro', codigo: 'NAO_ENCONTRADO', mensagem: 'Post não encontrado.' })
+    }
+
+    // 2. Procura a curtida exata entre VOCÊ e este POST
+    const curtida = await Curtida.query()
+      .where('postId', post.id)
+      .andWhere('usuarioId', Number(meuIdLogado))
+      .first()
+
+    if (!curtida) {
+      return response.status(404).send({ 
+        status: 'erro', 
+        codigo: 'NAO_ENCONTRADO', 
+        mensagem: 'Você ainda não curtiu esta postagem para poder descurtir.' 
+      })
+    }
+
+    // 3. Apaga a curtida
+    await curtida.delete()
+
+    return response.status(200).send({
+      status: 'sucesso',
+      codigo: 'OPERACAO_SUCESSO',
+      mensagem: 'Post descurtido com sucesso'
+    })
   }
 }

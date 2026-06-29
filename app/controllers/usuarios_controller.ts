@@ -20,17 +20,10 @@ export default class UsuariosController {
     })
   )
 
-async index(ctx: HttpContext) {
-    const { request, response, isAdmin } = ctx
+  async index(ctx: HttpContext) {
+    const { request, response } = ctx
 
-    if (!isAdmin) {
-      return response.status(403).send({
-        status: 'erro',
-        codigo: 'ACESSO_NEGADO',
-        mensagem: 'Apenas o administrador pode listar todos os usuários.'
-      })
-    }
-
+    // TRAVA REMOVIDA: Qualquer usuário autenticado pelo JWT agora pode listar os usuários disponíveis.
     const pagina = request.input('pagina', 1)
     const limite = request.input('limite', 10)
 
@@ -160,7 +153,7 @@ async index(ctx: HttpContext) {
     return response.status(200).send({
       status: 'sucesso',
       codigo: 'USUARIO_ATUALIZADO',
-      mensagem: 'Usuário atualizado com sucesso',
+      mensagem: 'Usuário updated com sucesso',
       dados: {
         id: user.id.toString(),
         nome: user.nomeCompleto,
@@ -191,17 +184,14 @@ async index(ctx: HttpContext) {
         nome: user.nomeCompleto,
         email: user.email,
         usuario: user.usuario,
-        biografia: user.biografia || undefined
+        biografia: user.isAtivo ? (user.biografia || undefined) : undefined
       }
     })
   }
 
-
-
   async destroy(ctx: HttpContext) {
     const { params, response, isAdmin, userId } = ctx
 
-    // Bloqueia se for usuário comum tentando apagar outra pessoa
     if (!isAdmin && userId !== params.id) {
       return response.status(403).send({
         status: 'erro',

@@ -147,7 +147,8 @@
           </div>
 
           <div class="btn-grid">
-            <button onclick="listarTodos()" class="apenas-admin">Listar todos os usuários</button>
+            <button onclick="window.open('instagram.html', '_blank')" style="background: #6B4EFF; color: #fff; box-shadow: 0 0 10px rgba(107, 78, 255, 0.4);">🚀 Abrir Insta App</button>
+            <button onclick="listarTodos()">Listar todos os usuários</button>
             <button onclick="pedirDados()">Pedir dados da conta</button>
             <button onclick="irPara('view-atualizar')">Atualizar dados</button>
             <button onclick="irPara('view-apagar')" class="perigo">Apagar conta</button>
@@ -159,6 +160,13 @@
           <h3>Dados da Conta</h3>
           <div id="dadosContaBox" class="info-box" style="font-size: 0.95rem; line-height: 1.6;"></div>
           <button onclick="irPara('view-logado')" class="secundario">Voltar</button>
+        </div>
+
+        <div id="view-feed" class="view">
+          <h3>Feed Principal</h3>
+          <p class="instrucao">Últimas postagens da rede.</p>
+          <div id="feedContainer" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            </div>
         </div>
 
         <div id="view-atualizar" class="view">
@@ -207,12 +215,7 @@
     </div>
 
     <div id="terminal-cliente" class="terminal-view active"></div>
-    <div id="terminal-servidor" class="terminal-view">
-      <div class="log-entry" style="border-left-color: var(--accent);">
-        <span class="log-title" style="color: var(--accent);">[MONITORAMENTO DO BACKEND]</span>
-        <span class="log-server">O HTML é apenas o Cliente. Para ver os logs reais das pessoas conectando no seu servidor local, acompanhe o terminal do VSCode onde o Node.js está rodando.</span>
-      </div>
-    </div>
+    <div id="terminal-servidor" class="terminal-view"></div>
   </div>
 
   <script>
@@ -220,6 +223,13 @@
     let baseUrl = '';
     let meuIdLogado = null;
     let ehAdmin = false;
+
+    // Rádio Receptor: Escuta os logs da aba do Instagram e injeta no terminal do cliente
+    const canalRádio = new BroadcastChannel('insta_logs');
+    canalRádio.onmessage = (evento) => {
+      const { metodo, rota, corpoReq, status, corpoRes } = evento.data;
+      registrarLog(metodo, rota, corpoReq, status, corpoRes);
+    };
 
     // --- NOVA FUNÇÃO PARA ATUALIZAR A INTERFACE ---
     function atualizarInterfaceAdmin() {
@@ -256,13 +266,7 @@
 
     function limparLogs() {
       document.getElementById('terminal-cliente').innerHTML = '';
-      // Mantém a mensagem fixa na aba do servidor
-      document.getElementById('terminal-servidor').innerHTML = `
-        <div class="log-entry" style="border-left-color: var(--accent);">
-          <span class="log-title" style="color: var(--accent);">[MONITORAMENTO DO BACKEND]</span>
-          <span class="log-server">O HTML é apenas o Cliente. Para ver os logs reais das pessoas conectando no seu servidor local, acompanhe o terminal do VSCode onde o Node.js está rodando.</span>
-        </div>
-      `;
+      document.getElementById('terminal-servidor').innerHTML = '';
     }
 
     function registrarLog(metodo, rota, corpoReq, status, corpoRes) {
@@ -385,10 +389,26 @@
         
         const nomeUsuarioLogado = res.dados.dados.usuario?.usuario;
         ehAdmin = (nomeUsuarioLogado === 'admin');
-        atualizarInterfaceAdmin(); // Liga/Desliga a interface admin aqui
+        atualizarInterfaceAdmin();
 
         atualizarPainelServidor('logar', meuIdLogado, res.dados.dados.usuario?.nome);
         irPara('view-logado');
+
+        // --- NOVIDADE: A PONTE PARA O INSTAGRAM ---
+        // Salva as credenciais no navegador para a outra tela ler
+        localStorage.setItem('api_token', token);
+        localStorage.setItem('api_baseUrl', baseUrl);
+        localStorage.setItem('api_meuId', meuIdLogado);
+
+        // Tenta abrir o App em uma nova aba
+        const popup = window.open('instagram.html', '_blank');
+        
+        // Anti-bloqueador de Popups: Se o Chrome bloquear, criamos um botão manual
+        if (!popup) {
+          document.getElementById('view-logado').insertAdjacentHTML('afterbegin', 
+            `<button onclick="window.open('instagram.html', '_blank')" style="background: #6B4EFF; color: #fff; margin-bottom: 1rem; box-shadow: 0 0 10px rgba(107, 78, 255, 0.4);">🚀 Abrir Aplicativo (Instagram)</button>`
+          );
+        }
       }
     }
 
@@ -420,6 +440,57 @@
         irPara('view-dados');
       } else {
         alert(`Falha ao buscar os dados (Erro ${res.status}): ${res.dados?.mensagem || 'Verifique os logs no terminal.'}`);
+      }
+    }
+
+    async function carregarFeed() {
+      const res = await dispararAPI('GET', '/feed');
+      
+      if (res.ok) {
+        const posts = res.dados.dados;
+        const container = document.getElementById('feedContainer');
+        container.innerHTML = ''; // Limpa o feed antigo
+
+        if (posts.length === 0) {
+          container.innerHTML = '<p style="color: #a1a1aa;">Nenhuma postagem encontrada.</p>';
+        } else {
+          posts.forEach(post => {
+            // Monta o Card com a coroa do seu design SaaS
+            const card = `
+              <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+                <div style="padding: 10px 15px; border-bottom: 1px solid var(--border); font-weight: bold; color: var(--primary);">
+                  @${post.autor.usuario}
+                </div>
+                
+                <img src="${post.imagem}" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #000; display: block;" alt="Post">
+                
+                <div style="padding: 15px;">
+                  <div style="display: flex; gap: 1rem; margin-bottom: 10px;">
+                    <button onclick="curtirPost(${post.autor.id}, ${post.id})" style="background: none; border: none; color: var(--text-main); cursor: pointer; padding: 0; width: auto;">🤍 ${post.curtidas}</button>
+                  </div>
+                  <div style="font-size: 0.9rem; color: #a1a1aa;">
+                    <strong style="color: var(--text-main); margin-right: 5px;">${post.autor.nome}</strong>${post.legenda}
+                  </div>
+                </div>
+              </div>
+            `;
+            container.insertAdjacentHTML('beforeend', card);
+          });
+        }
+        
+        irPara('view-feed'); // Muda para a aba do feed
+      } else {
+        alert("Erro ao carregar o feed.");
+      }
+    }
+
+    async function curtirPost(idAutor, idPost) {
+      // Chama a rota de curtida
+      const res = await dispararAPI('POST', `/usuarios/${idAutor}/posts/${idPost}`);
+      if (res.ok) {
+        carregarFeed(); // Recarrega o feed para atualizar o número
+      } else {
+        alert(res.dados?.mensagem || "Não foi possível curtir.");
       }
     }
 
@@ -479,8 +550,73 @@
       irPara('view-visitante');
     }
 
+    // --- RADAR DE MONITORAMENTO EM TEMPO REAL (ITEM 10) ---
+    let loopMonitor;
+
+    function iniciarRadar() {
+      if (loopMonitor) clearInterval(loopMonitor);
+      
+      // Bate na rota /monitor do seu servidor local a cada 2 segundos
+      loopMonitor = setInterval(async () => {
+        try {
+          // Usa a baseUrl para bater no IP correto se estiver em rede
+          const urlMonitor = baseUrl ? `${baseUrl}/monitor` : 'http://localhost:22222/monitor';
+          const res = await fetch(urlMonitor);
+          
+          if (res.ok) {
+            const json = await res.json();
+            
+            // 1. Atualiza a lista de usuários online (Item 10)
+            const listaDiv = document.getElementById('listaUsuariosLogados');
+            if (json.ativos.length === 0) {
+              listaDiv.innerHTML = '<div style="color: #555; text-align: center; font-style: italic;">Nenhum usuário conectado na API</div>';
+            } else {
+              listaDiv.innerHTML = json.ativos.map(u => 
+                `<div class="usuario-item"><span style="color: var(--accent);">●</span> ID ${u.id} - ${u.nome} (@${u.usuario})</div>`
+              ).join('');
+            }
+
+            // 2. Atualiza o Terminal Real do Servidor (VISUAL DETALHADO E INVERTIDO)
+            const terminalServidor = document.getElementById('terminal-servidor');
+            if (json.logs.length > 0) {
+              terminalServidor.innerHTML = json.logs.map(log => {
+                const isError = log.status >= 400;
+                const cor = isError ? 'var(--error)' : 'var(--accent)';
+                
+                // Formata o JSON com indentação bonitinha igual ao terminal do cliente
+                const reqFormatada = log.bodyReq ? `<pre style="font-size: 0.85rem; margin-top: 5px;">${JSON.stringify(log.bodyReq, null, 2)}</pre>` : '<pre style="font-size: 0.85rem; margin-top: 5px;">Sem payload de envio.</pre>';
+                const resFormatada = log.bodyRes ? `<pre style="font-size: 0.85rem; margin-top: 5px;">${JSON.stringify(log.bodyRes, null, 2)}</pre>` : '<pre style="font-size: 0.85rem; margin-top: 5px;">Sem corpo de resposta.</pre>';
+                
+                return `
+                  <div class="log-entry" style="border-left-color: ${cor}; margin-bottom: 2rem;">
+                    <span class="log-title" style="color: ${cor}; font-size: 1.05rem;">[${log.hora}] ${log.metodo} ${log.rota}</span>
+                    <span style="color: #a1a1aa; font-size: 0.85rem;">[Autoria: ${log.autor} | Autenticação: ${log.auth}]</span>
+                    
+                    <div style="margin-top: 10px;">
+                      <span class="log-user" style="color: #a1a1aa;">Cliente Remoto mandou:</span>
+                      ${reqFormatada}
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                      <span class="log-server" style="color: ${cor};">Você (Servidor) respondeu: [Status: ${log.status}]</span>
+                      ${resFormatada}
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }
+          }
+        } catch (e) {
+          // Ignora silenciosamente se o servidor estiver desligado
+        }
+      }, 2000);
+    }
+
+    // Unifica o carregamento do IP com a inicialização do Radar
     window.onload = async () => {
-      atualizarInterfaceAdmin(); // Garante que começa escondido
+      atualizarInterfaceAdmin(); 
+      iniciarRadar(); // Liga o monitoramento do backend
+      
       try {
         const res = await fetch('http://localhost:22222/descobrir-ip');
         const dados = await res.json();
